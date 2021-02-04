@@ -6,10 +6,7 @@ The technical aspects of the fuzzer are described in [our paper](https://arxiv.o
 ## Installation and Dependencies
 
 The installation contains makefile. This will build the fuzzer `sivo` and the dedicated compilers (`sivo-clang1` and `sivo-clang2`).
-The code has been tested on Ubuntu 16.04 with LLVM 3.4.0 installed:
-
-	apt-get install llvm-3.4-dev
-
+The code has been tested on Ubuntu 16.04 with LLVM 3.8.0. Run `setup.sh` to install this dependency.
 
 ## How it works
 
