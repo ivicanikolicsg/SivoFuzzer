@@ -1,7 +1,7 @@
 # SIVO: Refined gray-box fuzzer
 
 This repository contains the C++ implementation of the SIVO gray-box fuzzer. 
-The technical aspects of the fuzzer are described in [our paper](https://arxiv.org/pdf/xxx.pdf). 
+The technical aspects of the fuzzer are described in [our paper](https://arxiv.org/pdf/2102.02394.pdf). 
 
 ## Installation and Dependencies
 
