@@ -8,7 +8,11 @@ The technical aspects of the fuzzer are described in [our paper](https://arxiv.o
 The code has been tested on Ubuntu 16.04 with LLVM 3.8.0. Follow these steps to set up the project:
 
 	$ sudo apt update
-	$ sudo apt install -y libssl-dev make gcc g++ wget xz-utils
+	$ sudo apt install -y                                            \
+	    libssl-dev    `# fuzzer runtime`                             \
+	    make gcc g++  `# fuzzer compilation`                         \
+	    libgcc-7-dev  `# clang 3.8.0 compatibility on newer systems` \
+	    wget xz-utils `# clang 3.8.0 fetching`
 	$ source setup.sh
 
 	$ pushd Sivo-fuzzer
@@ -68,7 +72,7 @@ For `configure` scripts usually the compilation is as follows:
 	  ./configure        \
 	      --prefix ${TMP_DIR}
 	$ make install -j $(nproc)
-	$ mv ${TMP_DIR}/bin/${BIN_NAME} ${OUT_DIR}/${BIN_NAME}-1
+	 $ mv ${TMP_DIR}/bin/${BIN_NAME} ${OUT_DIR}/${BIN_NAME}-1
 
 	$ make distclean
 	$ rm -rf ${TMP_DIR}/*
