@@ -24,6 +24,7 @@
 #define ENV_VAR_MY_SERVER_ID              "__MY_SERVER_ID"
 #define ENV_VAR_BINARY_NAME               "__BINARY_COMPILE_NAME"
 #define ENV_VAR_CALL_PATH                 "__RUN_PATH"
+#define ENV_VAR_PERSISTENT                "__PERSISTENT_MODE"
 
 #define FORKSRV_FD          198
 

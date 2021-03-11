@@ -34,9 +34,8 @@ pass-coverage.o: pass-coverage.cc | test_deps
 pass-branches.o: pass-branches.cc | test_deps
 	$(CXX) $(CLANG_CFL) -I $(INC) -shared $< -o $@ $(CLANG_LFL)
 
-forkserver.o: forkserver.c | test_deps
-	$(CC) $(CFLAGS) -I $(INC) -fPIC -c $< -o $@
-
+forkserver.o: forkserver.cpp | test_deps
+	$(CXX) $(CXXFLAGS) -I $(INC) -fPIC -c $< -o $@
 
 test_build: $(PROGS)
 	@echo "[*] Testing the CC wrapper and instrumentation output..."

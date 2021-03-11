@@ -44,14 +44,15 @@ SOFTWARE.
  */
 
          
-#include "fork_servers.h"    
+#include "fork_servers.h" 
 #include "misc.h"
 #include <chrono>
 #include <vector>
 #include "executions.h"
-#include "config.h" 
+#include "config.h"
 #include "solutions.h"
 
+#define ENV_VAR_PERSISTENT "__PERSISTENT_MODE"
 
 using namespace std;
 
@@ -112,26 +113,28 @@ uint8_t *aflshowmap;
 
 
 static void handle_stop_sig(int sig) {
+    stop_soon = 1; 
 
-  stop_soon = 1; 
-
-  if ( child_pid[latest_server_id] > 0)     kill(child_pid[latest_server_id],   SIGKILL);
-  if ( forksrv_pid[latest_server_id] > 0)   kill(forksrv_pid[latest_server_id], SIGKILL);
-
+    /* send unmaskable termination signals */
+    if ( child_pid[latest_server_id] > 0)
+        kill(child_pid[latest_server_id],   SIGKILL);
+    if ( forksrv_pid[latest_server_id] > 0)
+        kill(forksrv_pid[latest_server_id], SIGKILL);
 }
 
 static void handle_timeout(int sig) 
 {
-
+    /* send maskable termination signal *
+     * NOTE: in persistent mode, there is no child; we risk killing the main *
+     *       process if we sent SIGKILL; SIGTERM can be caught               *
+     * NOTE: we cannot provide any guarantees that the fuzzed application    *
+     *       will not set up a handler of its own                            */
     if (child_pid[latest_server_id] > 0) {
-
         child_timed_out = 1; 
-        kill(child_pid[latest_server_id], SIGKILL);
-
+        kill(child_pid[latest_server_id], SIGTERM);
     } else if (child_pid[latest_server_id] == -1 && forksrv_pid[latest_server_id] > 0) {
-
         child_timed_out = 1; 
-        kill(forksrv_pid[latest_server_id], SIGKILL);
+        kill(forksrv_pid[latest_server_id], SIGTERM);
     }
 }
 
@@ -245,7 +248,7 @@ bool init_one_server(char *bin_path,
         setsid();
 
         // set to false to show the output
-        if(true)
+        if (false)
         {
             dup2(dev_null_fd, STDOUT_FILENO);
             dup2(dev_null_fd, STDERR_FILENO);
@@ -610,6 +613,7 @@ bool init_fork_servers(string tmp_input)
 {
     size_t len;
     bool   replace_stdin = true;
+    int    ans;
 
     USE_NO_FORK_SERVER = true;     /* state until successful init */
 
@@ -651,6 +655,17 @@ bool init_fork_servers(string tmp_input)
 
         args1[i] = strdup(target_comm[i]);
         args2[i] = strdup(target_comm[i]);
+    }
+
+    /* if persistent mode is requested via ENV_VAR_PERSISTENT */
+    if (getenv(ENV_VAR_PERSISTENT)) {
+        /* pass the input file path via the same env variable *
+         * argv[] will not be easily accesible in ctor        */
+        ans = setenv(ENV_VAR_PERSISTENT, tmp_input.c_str(), 1);
+        if (ans) {
+            printf("[ERROR] Could not set ENV_VAR_PERSISTENT (%d)\n", errno);
+            exit(-1);
+        }
     }
 
     /* initialize individual fork servers */

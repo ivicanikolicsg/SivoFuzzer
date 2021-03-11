@@ -19,6 +19,8 @@ The code has been tested on Ubuntu 16.04 with LLVM 3.8.0. Follow these steps to 
 	$ export PATH="${PATH}:$(realpath .)"
 	$ popd
 
+On newer systems (e.g.: Ubuntu 20.04), you may need to also install `gcc-7` and `g++-7` for `clang 3.8.0` to function.
+
 `setup.sh` will download clang+llvm-3.8.0 (if not present) and update your PATH. You may want to make the change to PATH permanent by editing your `~/.bashrc` or `~/.zshrc`. Alternatively, you can source `setup.sh` without redownloading clang+llvm at any time.
 
 The makefile will build the fuzzer `sivo`, as well as the dedicated compilers `sivo-clang1` and `sivo-clang2`. These can be called by their basenames due to the updated PATH.
