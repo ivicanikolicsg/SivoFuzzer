@@ -27,12 +27,22 @@ else
 	printf "You already have \033[33m${DIRNAME}\033[0m\n"
 fi
 
-# export path (if needed)
-BINPATH="$(realpath ${DIRNAME}/bin)"
-if [[ ":${PATH}:" == *":${BINPATH}:"* ]]; then
-	printf "Your PATH is already ok!\n"
+# add clang path (if needed)
+CLANGPATH="$(realpath ${DIRNAME}/bin)"
+if [[ ":${PATH}:" == *":${CLANGPATH}:"* ]]; then
+	printf "Your PATH already has \033[33mclang-3.8.0\033[0m!\n"
 else
-	export PATH="${BINPATH}:${PATH}"
-	printf "Your PATH has been updated!\n"
+	export PATH="${CLANGPATH}:${PATH}"
+	printf "Your PATH has been updated for \033[33mclang-3.8.0\033[0m!\n"
+fi
+
+# add sivo path (if needed)
+# NOTE: still have to compile it
+SIVOPATH="$(realpath Sivo-fuzzer)"
+if [[ ":${PATH}:" == *":${SIVOPATH}:"* ]]; then
+    printf "Your PATH already has \033[33msivo\033[0m!\n"
+else
+    export PATH="${SIVOPATH}:${PATH}"
+    printf "Your PATH has been updated for \033[33msivo\033[0m!\n"
 fi
 
