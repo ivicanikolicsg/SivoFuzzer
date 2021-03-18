@@ -13,10 +13,8 @@ CLANG_LFL    = `$(LLVM_CONFIG) --ldflags` $(LDFLAGS)
 
 INC          = ../include
 
-ifeq "$(origin CC)" "default"
-  CC         = clang
-  CXX        = clang++
-endif
+CC         = clang
+CXX        = clang++
 
 
 PROGS       = forkserver.o pass-coverage.o pass-branches.o 
