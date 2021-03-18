@@ -77,7 +77,7 @@ cleanup:
         ans = close(fd);
         if (ans == -1) {
             printf("[ERROR] Unable to close input file (%d)\n", errno);
-            exit(-1);
+            continue;
         }
     }
 
