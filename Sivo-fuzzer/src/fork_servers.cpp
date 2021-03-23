@@ -229,13 +229,16 @@ bool init_one_server(char *bin_path,
     snprintf(se_id, sizeof(se_id), "%d", server_id); 
     setenv(ENV_VAR_MY_SERVER_ID, se_id, 1);
 
+    printf("Preparing to fork...\n");
+
     forksrv_pid[server_id] = fork();
 
     if (forksrv_pid[server_id] < 0)
         printf("fork() failed\n");
 
-    if (!forksrv_pid[server_id]) {
+    printf("forksrv_pid[server_id] = %d\n", forksrv_pid[server_id]); 
 
+    if (!forksrv_pid[server_id]) {
         printf("Executable: %s :  ", bin_path);
         int ii =0 ;
         while( args[ii] != NULL)
@@ -245,7 +248,7 @@ bool init_one_server(char *bin_path,
         setsid();
 
         // set to false to show the output
-        if(false)
+        if(true)
         {
             dup2(dev_null_fd, STDOUT_FILENO);
             dup2(dev_null_fd, STDERR_FILENO);
@@ -296,8 +299,9 @@ bool init_one_server(char *bin_path,
         printf(KERR "Execv in fork failed. Exiting ...\n" KNRM );
 
         exit(0);
-
     }
+
+    printf("Main fuzzer handling post-fork of forkserver\n");
 
     /* Close the unneeded endpoints. */
     close(ctl_pipe[0]);
@@ -319,6 +323,7 @@ bool init_one_server(char *bin_path,
 
     setitimer(ITIMER_REAL, &it, NULL);
 
+    printf("Main fuzzer read %d bytes from forkserver: %08x\n", rlen, status);
     
     if (rlen == 4) {
         printf("Fork server is up.\n");
