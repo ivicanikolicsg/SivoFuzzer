@@ -125,8 +125,6 @@ static void start_forkserver()
     int server_id = 0; 
     int stdin_tty, ans;
 
-    printf("[forkserver] Starting forkserver\n");
-
     /* test if program is running as part of fork server */
     if (getenv(ENV_VAR_MY_SERVER_ID))
         server_id = atoi(getenv(ENV_VAR_MY_SERVER_ID));
@@ -138,8 +136,6 @@ static void start_forkserver()
     /* test once and for all if stdin is tty backed or file backed */
     stdin_tty = isatty(STDIN_FILENO);
 
-    printf("[forkserver] Entering main loop\n");
-
     /* fork client main loop */
     while (1) {
         uint32_t was_killed;
@@ -149,8 +145,6 @@ static void start_forkserver()
         if (read(ACTFORKSRV_FD, &was_killed, 4) != 4)
             _exit(1);
 
-        printf("[forkserver] Received fork request\n");
-
         /* spwan child from pre-main() checkpoint */
         child_pid = fork();
         if (child_pid < 0)
@@ -158,8 +152,6 @@ static void start_forkserver()
 
         /* child process cleanup */
         if (!child_pid) {
-            printf("[forkserver] Child proceeds to clean up\n");
-
             /* if stdin redirected from file, rewind cursor to start */
             if (!stdin_tty) {
                 ans = lseek(STDIN_FILENO, 0, SEEK_SET);
@@ -176,13 +168,9 @@ static void start_forkserver()
             close(ACTFORKSRV_FD);
             close(ACTFORKSRV_FD + 1);
        
-            printf("[forkserver] Child is breaking out of pre-main loop\n");
- 
             /* break out of fork client loop */
             return;
         }
-
-        printf("[forkserver] Parent is waiting for child\n");
 
         /* fork client must wait for child and report to server */
         if (write(ACTFORKSRV_FD + 1, &child_pid, 4) != 4)
@@ -191,8 +179,6 @@ static void start_forkserver()
             _exit(1);
         if (write(ACTFORKSRV_FD + 1, &status, 4) != 4)
             _exit(1);
-
-        printf("[forkserver] Pre-main loop finished; starting from the top\n");
     }
 }
 
