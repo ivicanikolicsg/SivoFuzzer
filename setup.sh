@@ -27,13 +27,24 @@ else
 	printf "You already have \033[33m${DIRNAME}\033[0m\n"
 fi
 
-# add clang path (if needed)
+# add clang bin path (if needed)
 CLANGPATH="$(realpath ${DIRNAME}/bin)"
 if [[ ":${PATH}:" == *":${CLANGPATH}:"* ]]; then
-	printf "Your PATH already has \033[33mclang-3.8.0\033[0m!\n"
+	printf "Your PATH already has \033[33m%s\033[0m!\n" "${DIRNAME}"
 else
 	export PATH="${CLANGPATH}:${PATH}"
-	printf "Your PATH has been updated for \033[33mclang-3.8.0\033[0m!\n"
+	printf "Your PATH has been updated for \033[33m%s\033[0m!\n" "${DIRNAME}"
+fi
+
+# add clang lib path (if needed)
+# may be needed by target runtime
+CLANGPATH="$(realpath ${DIRNAME}/lib)"
+if [[ ":${LD_LIBRARY_PATH}:" == *":${CLANGPATH}:"* ]]; then
+    printf "Your LD_LIBRARY_PATH already has \033[33m%s\033[0m!\n" "${DIRNAME}"
+else
+    export LD_LIBRARY_PATH="${CLANGPATH}:${LD_LIBRARY_PATH}"
+    printf "Your LD_LIBRARY_PATH has been updated for \033[33m%s\033[0m!\n" \
+        "${DIRNAME}"
 fi
 
 # add sivo path (if needed)
