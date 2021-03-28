@@ -142,15 +142,42 @@ int main(int argc, char** argv) {
     cc_params[cc_par_cnt++] = "-Qunused-arguments";
 
     while (--argc) {
-      uint8_t* cur = *(++argv);
+        uint8_t* cur = *(++argv);
 
-      if (!strcmp(cur, "-x")) x_set = 1;
+        if (!strcmp(cur, "-x")) x_set = 1;
 
-      if (!strcmp(cur, "-Wl,-z,defs") ||
-          !strcmp(cur, "-Wl,--no-undefined")) continue;
+        if (!strcmp(cur, "-Wl,-z,defs") ||
+            !strcmp(cur, "-Wl,--no-undefined")) continue;
 
-      cc_params[cc_par_cnt++] = cur;
+        /* remove unsupported sanitizers */
+        if (!strncmp(cur, "-fsanitize=", strlen("-fsanitize="))) {
+            /* find location of'builtin' within the sanitizer list */
+            char   *builtin_p = strstr((char *) cur, "builtin");
+            size_t ss_len     = strlen("builtin");
 
+            /* if 'builtin' is not used, ignore the rest */
+            if (!builtin_p)
+                goto remover_out;
+
+            /* if more than just 'builtin', remove comma as well */
+            if (builtin_p[ss_len]== ',')
+                ss_len++;
+            else if (builtin_p[-1] == ',') {
+                ss_len++;
+                builtin_p--;
+            }
+
+            /* calculate length to end of argument */
+            size_t rm_len = strlen(cur) + 1;
+            rm_len -= (size_t) builtin_p - (size_t) cur;
+            rm_len -= ss_len;
+
+            /* remove invalid sanitizer */
+            memmove(builtin_p, builtin_p + ss_len, rm_len);
+        }
+remover_out:
+
+        cc_params[cc_par_cnt++] = cur;
     }
 
     cc_params[cc_par_cnt++] = "-g";
