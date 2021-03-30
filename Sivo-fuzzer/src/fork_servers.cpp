@@ -244,7 +244,7 @@ bool init_one_server(char *bin_path,
         setsid();
 
         /* set to false to show the output */
-        if (true)
+        if (false)
         {
             dup2(dev_null_fd, STDOUT_FILENO);
             dup2(dev_null_fd, STDERR_FILENO);
