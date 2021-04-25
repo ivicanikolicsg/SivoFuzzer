@@ -60,6 +60,11 @@ uint64_t    tot_fork_executions             = 0;
 uint64_t    tot_norm_executions             = 0;
 uint64_t    tot_branches_tried_to_invert    = 0;
 
+/* testcase piping endpoints (reused for both children)                *
+ * NOTE: just an experimental hack to improve performance on Fuzzbench *
+ *       ignore otherwise                                              */
+static int stdout_pipe[2] = {0, 0};
+
 static int forksrv_pid[2],
         fsrv_ctl_fd[2],   
         fsrv_st_fd[2],
@@ -262,28 +267,39 @@ bool init_one_server(char *bin_path,
         close(st_pipe[1]);
         close(dev_null_fd);
 
-        /* redirect tmp_input to stdin                *
-         * forkserver must rewind cursort at each run */
+        /* redirect tmp_input to stdin               *
+         * forkserver must rewind cursor at each run */
         if (replace_stdin) {
-            /* open input file */
-            fd = open(tmp_input, O_RDONLY|O_CREAT, 0666);
-            if (fd == -1) {
-                printf("ERROR: could not open tmp_input (%d)\n", errno);
-                exit(-1);
+            /* replace stdin with a pipe; write directly to it */
+            if (using_piping) {
+                ans = dup2(stdout_pipe[0], STDIN_FILENO);
+                if (ans == -1) {
+                    printf("ERROR: could not dup2 stdin (%d)\n", errno);
+                    exit(-1);
+                }
             }
+            /* slow method path */
+            else {
+                /* open input file */
+                fd = open(tmp_input, O_RDONLY|O_CREAT, 0666);
+                if (fd == -1) {
+                    printf("ERROR: could not open tmp_input (%d)\n", errno);
+                    exit(-1);
+                }
 
-            /* replace stdin with tmp_input fd (stdin closed silently) */
-            ans = dup2(fd, STDIN_FILENO);
-            if (ans == -1) {
-                printf("ERROR: could not dup2 tmp_input (%d)\n", errno);
-                exit(-1);
-            }
+                /* replace stdin with tmp_input fd (stdin closed silently) */
+                ans = dup2(fd, STDIN_FILENO);
+                if (ans == -1) {
+                    printf("ERROR: could not dup2 tmp_input (%d)\n", errno);
+                    exit(-1);
+                }
 
-            /* close the original fd, now we have it as 0 */
-            ans = close(fd);
-            if (ans == -1) {
-                printf("ERROR: could not close old tmp_input (%d)\n", errno);
-                exit(-1);
+                /* close the original fd, now we have it as 0 */
+                ans = close(fd);
+                if (ans == -1) {
+                    printf("ERROR: could not close old tmp_input (%d)\n", errno);
+                    exit(-1);
+                }
             }
         }
 
@@ -341,7 +357,7 @@ int run_one_fork(  int type_of_run  )
     last_crashed                    = 0;
     last_is_timeout_max             = false;        
     int res;
-
+    ssize_t wb;
 
     execution_types[ server_id ] ++;
 
@@ -405,13 +421,17 @@ int run_one_fork(  int type_of_run  )
 
     }
     else{
-
-
         if ((res = write(fsrv_ctl_fd[server_id], &prev_timed_out, 4)) != 4) {
             if (stop_soon) return 0;
             printf("Unable to request new process from fork server (OOM?)\n"); fflush(stdout);
             exit(1);
         }
+
+        /* if piping, write data to child stdin (blocking) after asking for   *
+         * run and before ACK (prior to waitpid) and termination confirmation */
+        wb = write(stdout_pipe[1], tc_buffer, tc_buffer_len);
+        if (wb != tc_buffer_len)
+            printf("ERROR: unable to write full testcase to pipe (%d)\n", errno);
 
         if ((res = read(fsrv_st_fd[server_id], &(child_pid[server_id]), 4)) != 4) {
             if (stop_soon) return 0;
@@ -644,6 +664,45 @@ bool init_fork_servers(string tmp_input)
         args1[i] = strdup(target_comm[i]);
         args2[i] = strdup(target_comm[i]);
     }
+
+    /* if using piping method, prepare endpoints */
+    if (using_piping && replace_stdin) {
+        int ans = pipe(stdout_pipe);
+        if (ans == -1) {
+            printf("ERROR: could not pipe stdout_pipe (%d)\n", errno);
+            exit(-1);
+        }
+
+        /* make writing to pipe non-blocking */
+        int flags = fcntl(stdout_pipe[1], F_GETFL);
+        if (flags == -1) {
+            printf("ERROR: could not get pipe flags (%d)\n", errno);
+            exit(-1);
+        }
+
+        flags |= O_NONBLOCK;
+        ans = fcntl(stdout_pipe[1], F_SETFL, flags);
+        if (ans == -1) {
+            printf("ERROR: could not set pipe flags (%d)\n", errno);
+            exit(-1);
+        }
+
+        /* make reading to pipe non-blocking */
+        flags = fcntl(stdout_pipe[0], F_GETFL);
+        if (flags == -1) {
+            printf("ERROR: could not get pipe flags (%d)\n", errno);
+            exit(-1);
+        }
+
+        flags |= O_NONBLOCK;
+        ans = fcntl(stdout_pipe[0], F_SETFL, flags);
+        if (ans == -1) {
+            printf("ERROR: could not set pipe flags (%d)\n", errno);
+            exit(-1);
+        }
+    }
+    else
+        using_piping = 0;
 
     /* initialize individual fork servers */
     if (!init_one_server(bin_path1, args1, 0, replace_stdin, strdup(tmp_input.c_str())))

@@ -65,6 +65,13 @@ SOFTWARE.
 using namespace std;
 
 
+/* testcase piping method (for FuzzBench) */
+extern int     using_piping;        /* 1 if using this mode (see main())    */
+extern uint8_t *tc_buffer;          /* buffer holding current testcase      */
+extern size_t  tc_buffer_len;       /* length of current testcases          */
+extern size_t  tc_buffer_tot_len;   /* total available length in the buffer */
+
+
 void simple_exec( string scmd );
 
 

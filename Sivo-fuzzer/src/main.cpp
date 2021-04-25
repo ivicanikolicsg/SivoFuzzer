@@ -107,14 +107,17 @@ int main(int argc, char *argv[])
     int max_failed_in_row = 10;
     float CURRENT_TIMEOUT_EXECUTION    = TIMEOUT_EXECUTION;
 
-
     double full_time_spent[2] = {0.01,0.01}; 
     int fuzz_du_sm_sols[2] = {0,0};
     vector <float> choice_perct{0.9, 0.95, 0.99999999} ;
     start_fuzzing_time      = GET_TIMER();
     time_change_max_length  = GET_TIMER();
-    
-        
+
+
+    /* check if we are using piping method hack */
+    char *_using_piping = getenv("USING_PIPING");
+    using_piping = (_using_piping != NULL);
+
     /* initialize target_comm with appropriate strings */
     int found__ = 2;
     for( int i=0; i<argc; i++){

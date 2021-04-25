@@ -39,6 +39,11 @@ float write_speed = 0;
 uint64_t write_length = 0;
 uint64_t tot_writes_to_file = 0;
 
+/* testcase piping method (for FuzzBench) */
+int     using_piping      = 0;
+uint8_t *tc_buffer        = NULL;
+size_t  tc_buffer_len     = 0;
+size_t  tc_buffer_tot_len = 0;
 
 //
 //
@@ -79,20 +84,39 @@ void simple_exec( string scmd )
 }
 
 
-
-
-
-
-
 //
 //
 // Files & folders stuff
 //
 //
 
-
-bool copy_binary_file( string source, string dest)
+bool copy_binary_file(string source, string dest)
 {
+    /* piping method path (exclusive for TMP_INPUT) */
+    if (using_piping && tc_buffer && dest == TMP_INPUT) {
+        /* open (and create) output file */
+        int fd = open(dest.c_str(), O_WRONLY | O_CREAT, 0666);
+        if (fd < 0) {
+            printf(KERR "Can not copy %s to %s\n",
+                source.c_str(), dest.c_str());
+            return false;
+        }
+
+        /* write data from buffer to new file */
+        ssize_t wb = write(fd, tc_buffer, tc_buffer_len);
+        if (wb != tc_buffer_len) {
+            printf(KERR "Failed to copy data to new file\n");
+            close(fd);
+            return false;
+        }
+
+        /* clean up */
+        close(fd);
+
+        return true;
+    }
+
+
     std::ifstream  src(source, std::ios::binary);
     std::ofstream  dst(dest,   std::ios::binary);
 
@@ -102,17 +126,26 @@ bool copy_binary_file( string source, string dest)
 
 int file_size(const char* filename)
 {
+    /* piping method path (exclusive for TMP_INPUT) */
+    if (using_piping && tc_buffer && filename == TMP_INPUT)
+        return tc_buffer_len;
+
     std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
     return in.tellg(); 
 }
 
 bool file_exists (const std::string& name) 
 {
-  struct stat buffer;   
-  return (stat (name.c_str(), &buffer) == 0); 
+    /* piping method path (exclusive for TMP_INPUT) */
+    if (using_piping && tc_buffer && name == TMP_INPUT)
+        return true;    
+
+
+    struct stat buffer;   
+    return (stat (name.c_str(), &buffer) == 0); 
 }
 
-bool dir_exists( char* mydir )
+bool dir_exists(char* mydir )
 {
     DIR* dir = opendir(mydir);
     if (dir) {
@@ -146,9 +179,26 @@ uint64_t hash_file(string filename)
 }
 
 
-
 unsigned char* read_binary_file(string filename, int &bytes_read)
 {
+    /* piping method path (exclusive for TMP_INPUT) */
+    if (using_piping && filename == TMP_INPUT) {
+        /* allocate a sufficiently large buffer (caller must free) */
+        unsigned char *buffer = (unsigned char *) malloc(tc_buffer_len);
+        if (!buffer) {
+            printf(KERR "Can not allocate buffer\n");
+            return NULL;
+        }
+
+        /* copy data over; set bytes_read */
+        bytes_read = tc_buffer_len;
+        memmove(buffer, tc_buffer, tc_buffer_len);
+
+        return buffer;
+    }
+
+    /* slow method path */
+
     bytes_read = 0;
     FILE *file = fopen(filename.c_str(), "rb");
     if (file == NULL){
@@ -163,26 +213,6 @@ unsigned char* read_binary_file(string filename, int &bytes_read)
     if( NULL == file) return NULL;
     unsigned char * in = (unsigned char *) malloc(nsize+1);
     bytes_read = fread(in, sizeof(unsigned char), nsize, file);
-    fclose(file);
-    return in;
-}
-
-uint64_t * read_binary_file_uint64_t(string filename, int &qword_read)
-{
-    qword_read = 0;
-    FILE *file = fopen(filename.c_str(), "rb");
-    if (file == NULL){
-        printf( KERR "Cannot open binary filename:%s\n" KNRM, filename.c_str());
-        return NULL;
-    }
-    fseek(file, 0, SEEK_END);
-    long int nsize = ftell(file);
-    fclose(file);
-    // Reading data to array of unsigned chars
-    file = fopen(filename.c_str(), "rb");
-    if( NULL == file) return NULL;
-    uint64_t * in = (uint64_t *) malloc( (nsize+8)/8 * sizeof(uint64_t) );
-    qword_read = fread(in, sizeof(uint64_t), nsize, file);
     fclose(file);
     return in;
 }
@@ -236,6 +266,28 @@ static void write_common(int fd, unsigned char* data, int dsize)
  */
 void write_bytes_to_binary_file(string filename, unsigned char *data, int dsize)
 {
+    /* piping method path */
+    if (using_piping) {
+        /* adjust size of buffer */
+        tc_buffer_len = dsize;
+        if (tc_buffer_len > tc_buffer_tot_len) {
+            tc_buffer = (uint8_t *) realloc(tc_buffer, tc_buffer_len);
+            if (!tc_buffer) {
+                printf(KERR "Can not allocate buffer\n");
+                exit(1);
+            }
+
+            tc_buffer_tot_len = tc_buffer_len;
+        }
+
+        /* copy data over */
+        memmove(tc_buffer, data, tc_buffer_len);
+
+        return;
+    }
+
+    /* slow method path */
+
     /* first time call; open file */
     if (__builtin_expect((tmp_fd == -1), 0)) {
         tmp_fd = open(filename.c_str(), O_WRONLY|O_CREAT, 0666);
@@ -261,8 +313,6 @@ void write_bytes_to_binary_file(string filename, unsigned char *data, int dsize)
  *      @filename : not TMP_INPUT
  *      @data     : data buffer
  *      @dsize    : buffer size
- *
- * This function will open and close a file descriptor.
  */
 void write_bytes_to_binary_file_non_permanent(string filename, unsigned char *data, int dsize)
 {
@@ -284,8 +334,7 @@ void write_bytes_to_binary_file_non_permanent(string filename, unsigned char *da
     }
 }
 
-
-string get_only_filename_from_filepath( string filepath)
+string get_only_filename_from_filepath(string filepath)
 {
     int pos = filepath.size() - 2;
     while( pos >= 0 && filepath[pos] != '/' ) pos--;
@@ -306,13 +355,54 @@ string get_current_dir()
 
 bool prepare_tmp_input(string original_input)
 {
-    if( !file_exists( original_input )){ 
-        printf( KERR "Cannot read the original input file:%s\n" KNRM, original_input.c_str());
-        exit(0);
-        return false;
+    /* sivo needs an initial seed (does not matter what it is) */
+    if (!file_exists(original_input)){ 
+        printf(KERR "Cannot read the original input file:%s\n" KNRM, original_input.c_str());
+        exit(1);
     }
 
-    // copy the original input
+    /* piping method path */
+    if (using_piping) {
+        /* open file and determine initial length */
+        int fd = open(original_input.c_str(), O_RDONLY);
+        if (fd < 0) {
+            printf(KERR "Can not open original input file\n");
+            exit(1);
+        }
+
+        struct stat statbuf;
+        int ans = fstat(fd, &statbuf);
+        if (ans < 0) {
+            printf(KERR "Can not stat original input file\n");
+            exit(1);
+        }
+
+        tc_buffer_len = statbuf.st_size;
+
+        /* adjust size of buffer and read input file */
+        if (tc_buffer_len > tc_buffer_tot_len) {
+            tc_buffer = (uint8_t *) realloc(tc_buffer, tc_buffer_len);
+            if (!tc_buffer) {
+                printf(KERR "Can not allocate buffer\n");
+                exit(1);
+            }
+
+            tc_buffer_tot_len = tc_buffer_len;
+        }
+
+        ans = read(fd, tc_buffer, tc_buffer_len);
+        if (ans == -1) {
+            printf(KERR "Can not read original input file\n");
+            exit(1);
+        }
+
+        /* clean up */
+        close(fd);
+
+        return true;
+    }
+
+    /* slow method path */
     copy_binary_file( original_input, TMP_INPUT);
 
     // expand to min bytes (if needed)

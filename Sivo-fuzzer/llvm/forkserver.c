@@ -152,12 +152,10 @@ static void start_forkserver()
 
         /* child process cleanup */
         if (!child_pid) {
-            /* if stdin redirected from file, rewind cursor to start */
-            if (!stdin_tty) {
+            /* if stdin redirected from file, rewind cursor to start *
+             * if pipe, lseek will fail but that's ok                */
+            if (!stdin_tty)
                 ans = lseek(STDIN_FILENO, 0, SEEK_SET);
-                if (ans == -1)
-                    _exit(1);
-            }
 
             /* reset shared map */
             __afl_prev_loc = 0;
