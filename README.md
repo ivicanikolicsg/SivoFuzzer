@@ -1,6 +1,6 @@
-# SIVO: Refined gray-box fuzzer
+# SIVO: Refined grey-box fuzzer
 
-This repository contains the C++ implementation of the SIVO gray-box fuzzer. 
+This repository contains the C++ implementation of the SIVO grey-box fuzzer. 
 The technical aspects of the fuzzer are described in [our paper](https://arxiv.org/pdf/2102.02394.pdf). 
 
 ## Installation and Dependencies
@@ -25,7 +25,7 @@ The makefile will build the fuzzer `sivo`, as well as the dedicated compilers `s
 
 ## How it works
 
-SIVO is a **gray**-box fuzzer. Gray means that it needs to add extra code to the fuzzed program to track code coverage, among other things. This is done automatically, by compiling the target program with the provided dedicated compilers. The produced binary is then fuzzed with SIVO. 
+SIVO is a **grey**-box fuzzer. Grey means that it needs to add extra code to the fuzzed program to track code coverage, among other things. This is done automatically, by compiling the target program with the provided dedicated compilers. The produced binary is then fuzzed with SIVO. 
 
 ## How to compile source code
 
